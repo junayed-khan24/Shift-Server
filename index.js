@@ -1,7 +1,8 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 
 dotenv.config();
 
@@ -13,17 +14,11 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB URI
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.i9yr5cu.mongodb.net/?appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.i9yr5cu.mongodb.net`;
 
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
+const client = new MongoClient(uri);
 
-let parcelCollection;
+let parcels;
 
 async function run() {
   try {
@@ -31,70 +26,66 @@ async function run() {
     console.log("MongoDB connected ✅");
 
     const db = client.db("profastDB");
-    parcelCollection = db.collection("parcels");
-
-    /* =====================
-        PARCEL APIs
-    ====================== */
-
-    // ➕ Add new parcel
-    app.post("/parcels", async (req, res) => {
-      try {
-        const parcelData = req.body;
-
-        const parcel = {
-          ...parcelData,
-          createdAt: new Date(),        // timestamp
-          status: "pending",            // default status
-        };
-
-        const result = await parcelCollection.insertOne(parcel);
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({ error: "Failed to create parcel" });
-      }
-    });
-
-    // 📦 Get all parcels OR by user email
-    app.get("/parcels", async (req, res) => {
-      try {
-        const email = req.query.email;
-        let query = {};
-
-        if (email) {
-          query = { userEmail: email };
-        }
-
-        const result = await parcelCollection.find(query).toArray();
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({ error: "Failed to fetch parcels" });
-      }
-    });
-
-    // 📍 Get single parcel by ID (tracking)
-    app.get("/parcels/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const result = await parcelCollection.findOne({
-          _id: new ObjectId(id),
-        });
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({ error: "Parcel not found" });
-      }
-    });
-
-  } catch (error) {
-    console.error(error);
+    parcels = db.collection("parcels");
+  } catch (err) {
+    console.error("MongoDB connection error:", err);
   }
 }
-
 run();
 
-// sample route
+// ROUTES
+
+// Server test
 app.get("/", (req, res) => {
-  res.send("Welcome to ProFast Server 🚚");
+  res.send("ProFast Server Running 🚚");
+});
+
+// ➕ POST parcel
+app.post("/parcels", async (req, res) => {
+  try {
+    const parcel = {
+      ...req.body,
+      createdAt: new Date(),
+    };
+
+    const result = await parcels.insertOne(parcel);
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Failed to create parcel" });
+  }
+});
+
+// 📦 GET parcels (all or by email) - safe + case-insensitive
+app.get("/parcels", async (req, res) => {
+  try {
+    const userEmail = req.query.email;
+
+    const query = userEmail ? { created_by: userEmail } : {};
+    const options = {
+      sort: { createdAt: -1 },
+    };
+
+    const result = await parcels.find(query, options).toArray();
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Failed to fetch parcels" });
+  }
+});
+
+
+
+// 📍 GET single parcel by id
+app.get("/parcels/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const result = await parcels.findOne({ _id: new ObjectId(id) });
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Failed to fetch parcel" });
+  }
 });
 
 // start server
