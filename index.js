@@ -34,8 +34,6 @@ async function run() {
 run();
 
 // ROUTES
-
-// Server test
 app.get("/", (req, res) => {
   res.send("ProFast Server Running 🚚");
 });
@@ -51,39 +49,42 @@ app.post("/parcels", async (req, res) => {
     const result = await parcels.insertOne(parcel);
     res.send(result);
   } catch (error) {
-    console.error(error);
     res.status(500).send({ message: "Failed to create parcel" });
   }
 });
 
-// 📦 GET parcels (all or by email) - safe + case-insensitive
+// 📦 GET parcels (✅ FIXED HERE)
 app.get("/parcels", async (req, res) => {
   try {
     const userEmail = req.query.email;
 
-    const query = userEmail ? { created_by: userEmail } : {};
-    const options = {
-      sort: { createdAt: -1 },
-    };
+    const query = userEmail
+      ? {
+          createdByEmail: {
+            $regex: `^${userEmail}$`,
+            $options: "i", // case-insensitive
+          },
+        }
+      : {};
 
-    const result = await parcels.find(query, options).toArray();
+    const result = await parcels
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
     res.send(result);
   } catch (error) {
-    console.error(error);
     res.status(500).send({ message: "Failed to fetch parcels" });
   }
 });
 
-
-
-// 📍 GET single parcel by id
+// 📍 GET single parcel
 app.get("/parcels/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const result = await parcels.findOne({ _id: new ObjectId(id) });
     res.send(result);
   } catch (error) {
-    console.error(error);
     res.status(500).send({ message: "Failed to fetch parcel" });
   }
 });
