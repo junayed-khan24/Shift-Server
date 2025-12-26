@@ -59,7 +59,7 @@ app.get("/parcels", async (req, res) => {
     const userEmail = req.query.email;
 
     const query = userEmail
-      ? {
+      ? {    
           createdByEmail: {
             $regex: `^${userEmail}$`,
             $options: "i", // case-insensitive
@@ -78,7 +78,7 @@ app.get("/parcels", async (req, res) => {
   }
 });
 
-// 📍 GET single parcel
+// GET single parcel
 app.get("/parcels/:id", async (req, res) => {
   try {
     const id = req.params.id;
@@ -88,6 +88,24 @@ app.get("/parcels/:id", async (req, res) => {
     res.status(500).send({ message: "Failed to fetch parcel" });
   }
 });
+
+// DELETE parcel
+app.delete("/parcels/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await parcels.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Failed to delete parcel" });
+  }
+});
+
+
+
 
 // start server
 app.listen(port, () => {
